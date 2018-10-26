@@ -16,6 +16,8 @@
 
 #include "debug.h"
 
+#define RPMRC_MISSINGBUILDREQUIRES 11
+
 /**
  */
 static rpmRC doRmSource(rpmSpec spec)
@@ -44,7 +46,7 @@ static rpmRC doRmSource(rpmSpec spec)
 	}
     }
 exit:
-    return !rc ? RPMRC_OK : RPMRC_FAIL;
+    return !rc ? 0 : 1;
 }
 
 /*
@@ -69,7 +71,7 @@ rpmRC doScript(rpmSpec spec, rpmBuildFlags what, const char *name,
     pid_t pid;
     pid_t child;
     int status;
-    rpmRC rc = RPMRC_FAIL; /* assume failure */
+    rpmRC rc = 1; /* assume failure */
     
     switch (what) {
     case RPMBUILD_PREP:
@@ -196,9 +198,109 @@ exit:
     return rc;
 }
 
+static rpmRC doBuildRequires(rpmSpec spec, int test) {
+    char * buildDir = rpmGenPath(spec->rootDir, "%{_builddir}", "");
+    char *scriptName = NULL;
+    char * buildCmd = NULL;
+    FD_t fd = NULL;
+    FILE * fp = NULL;
+    StringBuf sb_stdout = NULL;
+    int argc = 0;
+    const char **argv = NULL;
+
+    int outc;
+    ARGV_t output = NULL;
+
+    rpmRC rc = 1; /* assume failure */
+
+    if (!spec->buildrequires) {
+	rc = RPMRC_OK;
+	goto exit;
+    }
+
+    /* write script to disk */
+    fd = rpmMkTempFile(spec->rootDir, &scriptName);
+    if (Ferror(fd)) {
+	rpmlog(RPMLOG_ERR, _("Unable to open temp file: %s\n"), Fstrerror(fd));
+	goto exit;
+    }
+
+    if ((fp = fdopen(Fileno(fd), "w")) == NULL) {
+	rpmlog(RPMLOG_ERR, _("Unable to open stream: %s\n"), strerror(errno));
+	goto exit;
+    }
+
+    fprintf(fp, "cd '%s'\n", buildDir);
+
+    if (spec->buildSubdir)
+    	fprintf(fp, "cd '%s'\n", spec->buildSubdir);
+    fprintf(fp, "%s", getStringBuf(spec->buildrequires));
+    (void) fclose(fp);
+
+    if (test) {
+	rc = RPMRC_OK;
+	goto exit;
+    }
+
+    /* execute script */
+    buildCmd = rpmExpand("/bin/sh", " ", scriptName, NULL);
+    (void) poptParseArgvString(buildCmd, &argc, &argv);
+    rpmlog(RPMLOG_NOTICE, _("Executing(buildreqs): %s\n"), buildCmd);
+    if ((rc = rpmfcExec((ARGV_const_t)argv, NULL, &sb_stdout, 1, spec->buildSubdir)))
+	goto exit;
+
+    /* add results to requires of the srpm */
+    argvSplit(&output, getStringBuf(sb_stdout), "\n\r");
+    outc = argvCount(output);
+
+    if (!outc) {
+	rc = RPMRC_OK;
+	goto exit;
+    }
+
+    for (int i = 0; i < outc; i++) {
+	parseRCPOT(spec, spec->sourcePackage, output[i], RPMTAG_REQUIRENAME, 0, 0, addReqProvPkg , NULL);
+    }
+
+    rpmdsPutToHeader(*packageDependencies(spec->sourcePackage, RPMTAG_REQUIRENAME), spec->sourcePackage->header);
+
+    if (rc == 0) {
+	parseRCPOT(spec, spec->sourcePackage, "DynamicBuildRequires = 4.15", RPMTAG_PROVIDENAME, 0, 0, addReqProvPkg , NULL);
+    }
+
+ exit:
+    free(argv);
+    free(buildCmd);
+    free(output);
+    free(buildDir);
+    return rc;
+}
+
+static rpmRC doCheckBuildRequires(rpmSpec spec, int test) {
+    /* recheck the dependencies */
+    rpmRC rc = RPMRC_OK;
+    rpmts ts = rpmtsCreate();
+    (void) rpmtsSetRootDir(ts, spec->rootDir);
+    rpmtsSetFlags(ts, rpmtsFlags(ts) | RPMTRANS_FLAG_NOPLUGINS);
+
+    rpmps ps = rpmSpecCheckDeps(ts, spec);
+
+    if (ps) {
+	rpmlog(RPMLOG_ERR, _("Failed build dependencies:\n"));
+	rpmpsPrint(NULL, ps);
+    }
+    if (ps != NULL)
+	rc = RPMRC_MISSINGBUILDREQUIRES;
+    rpmpsFree(ps);
+    rpmtsFree(ts);
+
+    return rc;
+}
+
 static rpmRC buildSpec(BTA_t buildArgs, rpmSpec spec, int what)
 {
     rpmRC rc = RPMRC_OK;
+    int missing_buildreqs = 0;
     int test = (what & RPMBUILD_NOBUILD);
     char *cookie = buildArgs->cookie ? xstrdup(buildArgs->cookie) : NULL;
 
@@ -242,6 +344,17 @@ static rpmRC buildSpec(BTA_t buildArgs, rpmSpec spec, int what)
 			   getStringBuf(spec->prep), test)))
 		goto exit;
 
+	if ((what & RPMBUILD_BUILDREQUIRES) &&
+            (rc = doBuildRequires(spec, test)))
+	    goto exit;
+	if ((what & RPMBUILD_CHECKBUILDREQUIRES) &&
+            (rc = doCheckBuildRequires(spec, test))) {
+	    if (rc == RPMRC_MISSINGBUILDREQUIRES) {
+		what = RPMBUILD_PACKAGESOURCE;
+	    } else {
+                goto exit;
+	    }
+	}
 	if ((what & RPMBUILD_BUILD) &&
 	    (rc = doScript(spec, RPMBUILD_BUILD, "%build",
 			   getStringBuf(spec->build), test)))
@@ -303,7 +416,9 @@ exit:
 	rpmlogPrint(NULL);
     }
     rpmugFree();
-
+    if (missing_buildreqs && !rc) {
+	rc = RPMRC_MISSINGBUILDREQUIRES;
+    }
     return rc;
 }
 

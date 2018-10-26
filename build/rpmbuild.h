@@ -35,6 +35,8 @@ enum rpmBuildFlags_e {
     RPMBUILD_FILE_FILE  = (1 << 16),    /*!< rpmSpecPkgGetSection: %files -f */
     RPMBUILD_FILE_LIST  = (1 << 17),    /*!< rpmSpecPkgGetSection: %files */
     RPMBUILD_POLICY     = (1 << 18),    /*!< rpmSpecPkgGetSection: %policy */
+    RPMBUILD_BUILDREQUIRES	= (1 <<  19),	/*!< Execute %%buildrequires. */
+    RPMBUILD_CHECKBUILDREQUIRES	= (1 <<  20),	/*!< Check %%buildrequires. */
 
     RPMBUILD_NOBUILD	= (1 << 31)	/*!< Don't execute or package. */
 };

@@ -514,7 +514,7 @@ static int buildForTarget(rpmts ts, const char * arg, BTA_t ba)
 	goto exit;
     }
 
-    if (rpmSpecBuild(spec, ba)) {
+    if ((rc = rpmSpecBuild(spec, ba))) {
 	goto exit;
     }
     
@@ -643,6 +643,10 @@ int main(int argc, char *argv[])
 	    break;
     case 'c':
 	ba->buildAmount |= RPMBUILD_BUILD;
+	if (!noDeps) {
+	    ba->buildAmount |= RPMBUILD_BUILDREQUIRES;
+	    ba->buildAmount |= RPMBUILD_CHECKBUILDREQUIRES;
+	}
 	if ((buildChar == 'c') && shortCircuit)
 	    break;
     case 'p':
