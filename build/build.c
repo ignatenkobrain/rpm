@@ -339,6 +339,13 @@ static rpmRC buildSpec(BTA_t buildArgs, rpmSpec spec, int what)
     } else {
 	int didBuild = (what & (RPMBUILD_PREP|RPMBUILD_BUILD|RPMBUILD_INSTALL));
 
+	if (!spec->buildrequires && (what & RPMBUILD_PACKAGESOURCE) &&
+	    !(what & (RPMBUILD_BUILD|RPMBUILD_INSTALL|RPMBUILD_PACKAGEBINARY))){
+		/* don't run prep if not needed for source build */
+		/* with(out) dynamic build requires*/
+	    what &= !RPMBUILD_PREP;
+	}
+
 	if ((what & RPMBUILD_PREP) &&
 	    (rc = doScript(spec, RPMBUILD_PREP, "%prep",
 			   getStringBuf(spec->prep), test)))
