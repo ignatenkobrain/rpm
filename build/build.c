@@ -350,6 +350,18 @@ static rpmRC buildSpec(BTA_t buildArgs, rpmSpec spec, int what)
 	if ((what & RPMBUILD_CHECKBUILDREQUIRES) &&
             (rc = doCheckBuildRequires(spec, test))) {
 	    if (rc == RPMRC_MISSINGBUILDREQUIRES) {
+		/* Create buildreqs package */
+		char *nvr = headerGetAsString(spec->packages->header, RPMTAG_NVR);
+		rasprintf(&spec->sourceRpmName, "%s.buildreqs.rpm", nvr);
+		free(nvr);
+		/* free sources to not include them in the buildreqs package */
+		while (spec->sources) {
+		    struct Source *t = spec->sources;
+		    spec->sources = t->next;
+		    _free(t->fullSource);
+		    free(t);
+		}
+		spec->numSources = 0;
 		what = RPMBUILD_PACKAGESOURCE;
 	    } else {
                 goto exit;
