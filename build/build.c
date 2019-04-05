@@ -202,6 +202,9 @@ static rpmRC doBuildRequires(rpmSpec spec, int test) {
     char * buildDir = rpmGenPath(spec->rootDir, "%{_builddir}", "");
     char *scriptName = NULL;
     char * buildCmd = NULL;
+    char * buildTemplate = NULL;
+    char * buildPost = NULL;
+
     FD_t fd = NULL;
     FILE * fp = NULL;
     StringBuf sb_stdout = NULL;
@@ -230,11 +233,17 @@ static rpmRC doBuildRequires(rpmSpec spec, int test) {
 	goto exit;
     }
 
+    buildTemplate = rpmExpand("%{__spec_buildrequires_template}", NULL);
+    buildPost = rpmExpand("%{__spec_buildrequires_post}", NULL);
+
+    (void) fputs(buildTemplate, fp);
+
     fprintf(fp, "cd '%s'\n", buildDir);
 
     if (spec->buildSubdir)
     	fprintf(fp, "cd '%s'\n", spec->buildSubdir);
     fprintf(fp, "%s", getStringBuf(spec->buildrequires));
+    (void) fputs(buildPost, fp);
     (void) fclose(fp);
 
     if (test) {
@@ -243,7 +252,7 @@ static rpmRC doBuildRequires(rpmSpec spec, int test) {
     }
 
     /* execute script */
-    buildCmd = rpmExpand("/bin/sh", " ", scriptName, NULL);
+    buildCmd = rpmExpand("%{__spec_buildrequires_cmd}", " ", scriptName, NULL);
     (void) poptParseArgvString(buildCmd, &argc, &argv);
     rpmlog(RPMLOG_NOTICE, _("Executing(buildreqs): %s\n"), buildCmd);
     if ((rc = rpmfcExec((ARGV_const_t)argv, NULL, &sb_stdout, 1, spec->buildSubdir)))
@@ -271,6 +280,8 @@ static rpmRC doBuildRequires(rpmSpec spec, int test) {
  exit:
     free(argv);
     free(buildCmd);
+    free(buildTemplate);
+    free(buildPost);
     free(output);
     free(buildDir);
     return rc;
