@@ -438,10 +438,12 @@ exit:
     if (missing_buildreqs && !rc) {
 	rc = RPMRC_MISSINGBUILDREQUIRES;
     }
+    if (rc == RPMRC_FAIL)
+	rc = 1;
     return rc;
 }
 
-rpmRC rpmSpecBuild(rpmSpec spec, BTA_t buildArgs)
+int rpmSpecBuild(rpmSpec spec, BTA_t buildArgs)
 {
     /* buildSpec() can recurse with different buildAmount, pass it separately */
     return buildSpec(buildArgs, spec, buildArgs->buildAmount);

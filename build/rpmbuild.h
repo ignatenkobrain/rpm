@@ -107,9 +107,10 @@ rpmds rpmSpecDS(rpmSpec spec, rpmTagVal tag);
  * Spec build stages state machine driver.
  * @param spec		spec file control structure
  * @param buildArgs	build arguments
- * @return		RPMRC_OK on success
+ * @return		0 on success, 1 on build error,
+ * 			11 on missing dynamic build requirements
  */
-rpmRC rpmSpecBuild(rpmSpec spec, BTA_t buildArgs);
+int rpmSpecBuild(rpmSpec spec, BTA_t buildArgs);
 
 #ifdef __cplusplus
 }
