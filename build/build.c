@@ -380,6 +380,7 @@ static rpmRC buildSpec(BTA_t buildArgs, rpmSpec spec, int what)
 		    free(t);
 		}
 		spec->numSources = 0;
+		missing_buildreqs = 1;
 		what = RPMBUILD_PACKAGESOURCE;
 	    } else {
                 goto exit;
