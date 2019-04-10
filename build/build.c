@@ -370,7 +370,7 @@ static rpmRC buildSpec(BTA_t buildArgs, rpmSpec spec, int what)
 	    if (rc == RPMRC_MISSINGBUILDREQUIRES) {
 		/* Create buildreqs package */
 		char *nvr = headerGetAsString(spec->packages->header, RPMTAG_NVR);
-		rasprintf(&spec->sourceRpmName, "%s.buildreqs.rpm", nvr);
+		rasprintf(&spec->sourceRpmName, "%s.buildreqs.nosrc.rpm", nvr);
 		free(nvr);
 		/* free sources to not include them in the buildreqs package */
 		while (spec->sources) {
