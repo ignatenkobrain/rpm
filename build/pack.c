@@ -742,7 +742,7 @@ rpmRC packageSources(rpmSpec spec, char **cookie)
     headerPutUint32(sourcePkg->header, RPMTAG_SOURCEPACKAGE, &one, 1);
 
     if (spec->buildrequires) {
-	(void) rpmlibNeedsFeature(sourcePkg, "DynamicBuildRequires", "4.15-1");
+	(void) rpmlibNeedsFeature(sourcePkg, "DynamicBuildRequires", "4.15.0-1");
     }
 
     /* XXX this should be %_srpmdir */
