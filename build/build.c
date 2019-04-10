@@ -354,7 +354,7 @@ static rpmRC buildSpec(BTA_t buildArgs, rpmSpec spec, int what)
 	    !(what & (RPMBUILD_BUILD|RPMBUILD_INSTALL|RPMBUILD_PACKAGEBINARY))){
 		/* don't run prep if not needed for source build */
 		/* with(out) dynamic build requires*/
-	    what &= !RPMBUILD_PREP;
+	    what &= ~(RPMBUILD_PREP);
 	}
 
 	if ((what & RPMBUILD_PREP) &&
