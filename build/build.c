@@ -273,9 +273,7 @@ static rpmRC doBuildRequires(rpmSpec spec, int test) {
 
     rpmdsPutToHeader(*packageDependencies(spec->sourcePackage, RPMTAG_REQUIRENAME), spec->sourcePackage->header);
 
-    if (rc == 0) {
-	parseRCPOT(spec, spec->sourcePackage, "DynamicBuildRequires = 4.15.0", RPMTAG_PROVIDENAME, 0, 0, addReqProvPkg , NULL);
-    }
+    parseRCPOT(spec, spec->sourcePackage, "rpmlib(DynamicBuildRequires) = 4.15.0-1", RPMTAG_PROVIDENAME, 0, 0, addReqProvPkg , NULL);
 
  exit:
     free(argv);
